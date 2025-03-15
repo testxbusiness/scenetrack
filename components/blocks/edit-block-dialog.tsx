@@ -10,12 +10,13 @@ interface EditBlockDialogProps {
   block: Block
   onClose: () => void
   onDeleted: () => void
+  onUpdated?: (updatedBlock: Block) => void
 }
 
 // Global variable to track if the edit dialog is open
 let isEditDialogOpen = false;
 
-export function EditBlockDialog({ block, onClose, onDeleted }: EditBlockDialogProps) {
+export function EditBlockDialog({ block, onClose, onDeleted, onUpdated }: EditBlockDialogProps) {
   // Set the dialog as open when component mounts
   useEffect(() => {
     isEditDialogOpen = true;
@@ -144,12 +145,20 @@ export function EditBlockDialog({ block, onClose, onDeleted }: EditBlockDialogPr
     }
   }
 
+  const [completed, setCompleted] = useState(block.completed)
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
 
     try {
       // Update the block
+      // Ensure sceneDate is properly formatted if it's a generic day
+      let formattedSceneDate = sceneDate;
+      if (formattedSceneDate && formattedSceneDate.startsWith('GIORNO') && !formattedSceneDate.startsWith('GIORNO ')) {
+        formattedSceneDate = 'GIORNO ' + formattedSceneDate.replace('GIORNO', '').trim();
+      }
+      
       const { error } = await supabase
         .from('blocks')
         .update({
@@ -161,12 +170,35 @@ export function EditBlockDialog({ block, onClose, onDeleted }: EditBlockDialogPr
           interior_exterior: interiorExterior || null,
           time_of_day: timeOfDay || null,
           history: history || null,
-          scene_date: sceneDate || null,
+          scene_date: formattedSceneDate || null,
           scene_time: sceneTime || null,
+          completed
         })
         .eq('id', block.id)
 
       if (error) throw error
+      
+      // Fetch the updated block to pass to onUpdated callback
+      const { data: updatedBlock, error: fetchError } = await supabase
+        .from('blocks')
+        .select(`
+          *,
+          photos (
+            id,
+            file_path,
+            file_name,
+            comment
+          )
+        `)
+        .eq('id', block.id)
+        .single()
+
+      if (fetchError) throw fetchError
+
+      // Call onUpdated with the updated block if the callback exists
+      if (onUpdated && updatedBlock) {
+        onUpdated(updatedBlock)
+      }
       
       // Close the dialog after successful update
       router.refresh()
@@ -278,43 +310,62 @@ export function EditBlockDialog({ block, onClose, onDeleted }: EditBlockDialogPr
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label htmlFor="interiorExterior" className="block text-sm font-medium mb-1">
-                Interno/Esterno
+              <label htmlFor="status" className="block text-sm font-medium mb-1">
+                Stato
               </label>
               <select
-                id="interiorExterior"
-                value={interiorExterior}
-                onChange={(e) => setInteriorExterior(e.target.value)}
+                id="status"
+                value={completed ? 'completed' : 'pending'}
+                onChange={(e) => setCompleted(e.target.value === 'completed')}
                 className="w-full p-2 rounded-md border bg-background"
               >
-                <option value="">Seleziona...</option>
-                <option value="INT">Interno</option>
-                <option value="EST">Esterno</option>
-                <option value="INT/EST">Interno/Esterno</option>
-                <option value="EST/INT">Esterno/Interno</option>
+                <option value="pending">Da completare</option>
+                <option value="completed">Completata</option>
               </select>
             </div>
             <div>
-              <label htmlFor="timeOfDay" className="block text-sm font-medium mb-1">
-                Tempo
+              <label htmlFor="location" className="block text-sm font-medium mb-1">
+                Location
               </label>
-              <select
-                id="timeOfDay"
-                value={timeOfDay}
-                onChange={(e) => setTimeOfDay(e.target.value)}
-                className="w-full p-2 rounded-md border bg-background"
-              >
-                <option value="">Seleziona...</option>
-                <option value="GIORNO">Giorno</option>
-                <option value="NOTTE">Notte</option>
-                <option value="ALBA">Alba</option>
-                <option value="TRAMONTO">Tramonto</option>
-                <option value="CREPUSCOLO">Crepuscolo</option>
-                <option value="MATTINA">Mattina</option>
-                <option value="POMERIGGIO">Pomeriggio</option>
-                <option value="SERA">Sera</option>
-              </select>
             </div>
+          </div>
+          <div>
+            <label htmlFor="interiorExterior" className="block text-sm font-medium mb-1">
+              Interno/Esterno
+            </label>
+            <select
+              id="interiorExterior"
+              value={interiorExterior}
+              onChange={(e) => setInteriorExterior(e.target.value)}
+              className="w-full p-2 rounded-md border bg-background"
+            >
+              <option value="">Seleziona...</option>
+              <option value="INT">Interno</option>
+              <option value="EST">Esterno</option>
+              <option value="INT/EST">Interno/Esterno</option>
+              <option value="EST/INT">Esterno/Interno</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="timeOfDay" className="block text-sm font-medium mb-1">
+              Tempo
+            </label>
+            <select
+              id="timeOfDay"
+              value={timeOfDay}
+              onChange={(e) => setTimeOfDay(e.target.value)}
+              className="w-full p-2 rounded-md border bg-background"
+            >
+              <option value="">Seleziona...</option>
+              <option value="GIORNO">Giorno</option>
+              <option value="NOTTE">Notte</option>
+              <option value="ALBA">Alba</option>
+              <option value="TRAMONTO">Tramonto</option>
+              <option value="CREPUSCOLO">Crepuscolo</option>
+              <option value="MATTINA">Mattina</option>
+              <option value="POMERIGGIO">Pomeriggio</option>
+              <option value="SERA">Sera</option>
+            </select>
           </div>
           <div>
             <label htmlFor="title" className="block text-sm font-medium mb-1">
@@ -352,30 +403,91 @@ export function EditBlockDialog({ block, onClose, onDeleted }: EditBlockDialogPr
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="sceneDate" className="block text-sm font-medium mb-1">
-                Data
-              </label>
-              <input
-                type="date"
-                id="sceneDate"
-                value={sceneDate}
-                onChange={(e) => setSceneDate(e.target.value)}
-                className="w-full p-2 rounded-md border bg-background"
-              />
+          <div>
+            <label className="block text-sm font-medium mb-1">
+              Timeline della scena
+            </label>
+            <div className="grid grid-cols-1 gap-2 mb-2">
+              <div className="flex items-center">
+                <input
+                  type="radio"
+                  id="useDate"
+                  name="dateType"
+                  checked={!sceneDate.startsWith('GIORNO')}
+                  onChange={() => {
+                    if (sceneDate.startsWith('GIORNO')) {
+                      setSceneDate('');
+                    }
+                  }}
+                  className="mr-2"
+                />
+                <label htmlFor="useDate" className="text-sm">Usa data specifica</label>
+              </div>
+              <div className="flex items-center">
+                <input
+                  type="radio"
+                  id="useDay"
+                  name="dateType"
+                  checked={sceneDate.startsWith('GIORNO')}
+                  onChange={() => {
+                    if (!sceneDate.startsWith('GIORNO')) {
+                      setSceneDate('GIORNO ');
+                    }
+                  }}
+                  className="mr-2"
+                />
+                <label htmlFor="useDay" className="text-sm">Usa giorno generico (es. GIORNO 1)</label>
+              </div>
             </div>
-            <div>
-              <label htmlFor="sceneTime" className="block text-sm font-medium mb-1">
-                Ora
-              </label>
-              <input
-                type="time"
-                id="sceneTime"
-                value={sceneTime}
-                onChange={(e) => setSceneTime(e.target.value)}
-                className="w-full p-2 rounded-md border bg-background"
-              />
+            
+            <div className="grid grid-cols-2 gap-4">
+              {sceneDate.startsWith('GIORNO') ? (
+                <div>
+                  <label htmlFor="sceneDay" className="block text-sm font-medium mb-1">
+                    Giorno
+                  </label>
+                  <input
+                    type="text"
+                    id="sceneDay"
+                    value={sceneDate}
+                    onChange={(e) => {
+                      // Ensure the input always starts with 'GIORNO '
+                      let value = e.target.value;
+                      if (!value.startsWith('GIORNO ')) {
+                        value = 'GIORNO ' + value.replace('GIORNO', '');
+                      }
+                      setSceneDate(value);
+                    }}
+                    placeholder="GIORNO 1"
+                    className="w-full p-2 rounded-md border bg-background"
+                  />
+                </div>
+              ) : (
+                <div>
+                  <label htmlFor="sceneDate" className="block text-sm font-medium mb-1">
+                    Data
+                  </label>
+                  <input
+                    type="date"
+                    id="sceneDate"
+                    value={sceneDate}
+                    onChange={(e) => setSceneDate(e.target.value)}
+                    className="w-full p-2 rounded-md border bg-background"
+                  />
+                </div>
+              )}
+              <div>
+                <label htmlFor="sceneTime" className="block text-sm font-medium mb-1">
+                  Ora
+                </label>
+                <input
+                  type="time"
+                  id="sceneTime"
+                  value={sceneTime}
+                  onChange={(e) => setSceneTime(e.target.value)}
+                  className="w-full p-2 rounded-md border bg-background"
+                />
+              </div>
             </div>
           </div>
           <div>

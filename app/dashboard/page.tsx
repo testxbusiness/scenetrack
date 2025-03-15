@@ -2,8 +2,9 @@ import { createServerComponentClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
-import { ProjectWizard } from '@/components/projects/project-wizard'
+// Fix the import path - ensure it matches the actual file name
 import { ProjectsList } from '@/components/projects/projects-list'
+import { NewProjectButton } from '@/components/projects/new-project-button'
 
 export default async function DashboardPage() {
   const supabase = createServerComponentClient()
@@ -21,52 +22,20 @@ export default async function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="relative w-[120px] h-[48px]">
-              <Image
-                src="/scenetrack_logo.png"
-                alt="SceneTrack Logo"
-                fill
-                className="object-contain dark:invert"
-                sizes="120px"
-              />
+      <main className="container mx-auto px-4 py-10">
+        <h1 className="text-3xl font-bold mb-10 tracking-tight">Dashboard</h1>
+        
+        <div className="space-y-12">
+          <section>
+            <div className="flex items-center justify-between mb-8">
+              <h2 className="text-2xl font-semibold tracking-tight">I tuoi progetti</h2>
+              <NewProjectButton />
             </div>
-            <h1 className="text-xl font-semibold">Dashboard</h1>
-          </div>
-          <div className="flex items-center gap-4">
-            {user.user_metadata.avatar_url && (
-              <div className="relative w-8 h-8">
-                <Image
-                  src={user.user_metadata.avatar_url}
-                  alt="Avatar"
-                  fill
-                  className="rounded-full object-cover"
-                  sizes="32px"
-                />
-              </div>
-            )}
-            <form action="/auth/signout" method="post">
-              <button
-                type="submit"
-                className="text-sm text-muted-foreground hover:text-foreground"
-              >
-                Esci
-              </button>
-            </form>
-          </div>
+            <div className="bg-card rounded-xl p-6 shadow-sm border">
+              <ProjectsList initialProjects={projects || []} />
+            </div>
+          </section>
         </div>
-      </header>
-
-      <main className="container mx-auto px-4 py-8">
-        <section>
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl font-bold">I tuoi progetti</h2>
-            <ProjectWizard />
-          </div>
-          <ProjectsList initialProjects={projects || []} />
-        </section>
       </main>
     </div>
   )

@@ -25,9 +25,11 @@ export function ExpandedBlockDialog({ block, onClose, onDeleted, onUpdated }: Ex
   const [location, setLocation] = useState(block.location || '')
   const [interiorExterior, setInteriorExterior] = useState(block.interior_exterior || '')
   const [timeOfDay, setTimeOfDay] = useState(block.time_of_day || '')
+  const [completed, setCompleted] = useState(block.completed || false)
   const [isUploading, setIsUploading] = useState(false)
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null)
   const [editingPhoto, setEditingPhoto] = useState<Photo | null>(null)
+  const [cacheKey, setCacheKey] = useState(Date.now())
   const router = useRouter()
   const supabase = createClientComponentClient()
 
@@ -42,6 +44,7 @@ export function ExpandedBlockDialog({ block, onClose, onDeleted, onUpdated }: Ex
           location: location || null,
           interior_exterior: interiorExterior || null,
           time_of_day: timeOfDay || null,
+          completed,
         })
         .eq('id', block.id)
         .select()
@@ -119,6 +122,7 @@ export function ExpandedBlockDialog({ block, onClose, onDeleted, onUpdated }: Ex
         .single()
 
       if (data) {
+        setCacheKey(Date.now())
         onUpdated(data)
       }
     } catch (error) {
@@ -166,11 +170,63 @@ export function ExpandedBlockDialog({ block, onClose, onDeleted, onUpdated }: Ex
         .single()
 
       if (data) {
+        setCacheKey(Date.now())
         onUpdated(data)
       }
     } catch (error) {
       console.error('Error deleting photo:', error)
       alert('Errore durante l\'eliminazione della foto')
+    }
+  }
+
+  const handleSaveEdit = async (editedImageUrl: string) => {
+    if (!editingPhoto) return
+
+    try {
+      // Convert data URL to blob
+      const response = await fetch(editedImageUrl)
+      const blob = await response.blob()
+
+      // Delete the old file
+      const { error: deleteError } = await supabase.storage
+        .from('scene-photos')
+        .remove([editingPhoto.file_path])
+
+      if (deleteError) throw deleteError
+
+      // Upload the new file with the same path
+      const { error: uploadError } = await supabase.storage
+        .from('scene-photos')
+        .upload(editingPhoto.file_path, blob, {
+          cacheControl: '3600',
+          upsert: true,
+          contentType: blob.type
+        })
+
+      if (uploadError) throw uploadError
+
+      // Refresh block data to get updated photos
+      const { data } = await supabase
+        .from('blocks')
+        .select(`
+          *,
+          photos (
+            id,
+            file_path,
+            file_name,
+            comment
+          )
+        `)
+        .eq('id', block.id)
+        .single()
+
+      if (data) {
+        setEditingPhoto(null)
+        onUpdated(data)
+      }
+    } catch (error) {
+      console.error('Error saving edited photo:', error)
+      alert('Errore durante il salvataggio della foto modificata')
     }
   }
 
@@ -230,7 +286,20 @@ export function ExpandedBlockDialog({ block, onClose, onDeleted, onUpdated }: Ex
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1">
-                  Interno/Esterno
+                  Stato
+                </label>
+                <select
+                  value={completed ? 'completed' : 'pending'}
+                  onChange={(e) => setCompleted(e.target.value === 'completed')}
+                  className="w-full p-2 rounded-md border bg-background"
+                >
+                  <option value="pending">Da completare</option>
+                  <option value="completed">Completata</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Location
                 </label>
                 <select
                   value={interiorExterior}
@@ -360,7 +429,7 @@ export function ExpandedBlockDialog({ block, onClose, onDeleted, onUpdated }: Ex
                         onClick={() => setSelectedPhoto(photo)}
                       >
                         <Image
-                          src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/scene-photos/${photo.file_path}?v=${new Date().getTime()}`}
+                          src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/scene-photos/${photo.file_path}?v=${cacheKey}`}
                           alt={photo.file_name}
                           fill
                           className="object-cover"
@@ -404,88 +473,20 @@ export function ExpandedBlockDialog({ block, onClose, onDeleted, onUpdated }: Ex
 
       {selectedPhoto && (
         <PhotoViewer
-          photo={selectedPhoto}
+          photo={{
+            ...selectedPhoto,
+            file_path: `${selectedPhoto.file_path}?v=${cacheKey}`
+          }}
           onClose={() => setSelectedPhoto(null)}
         />
       )}
 
       {editingPhoto && (
         <PhotoEditor
-          imageUrl={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/scene-photos/${editingPhoto.file_path}?v=${new Date().getTime()}`}
-          onSave={async (editedImageUrl) => {
-            if (!editingPhoto) return;
-
-            try {
-              // Convert data URL to blob
-              const base64Data = editedImageUrl.split(',')[1];
-              const byteCharacters = atob(base64Data);
-              const byteArrays = [];
-              
-              for (let offset = 0; offset < byteCharacters.length; offset += 512) {
-                const slice = byteCharacters.slice(offset, offset + 512);
-                const byteNumbers = new Array(slice.length);
-                
-                for (let i = 0; i < slice.length; i++) {
-                  byteNumbers[i] = slice.charCodeAt(i);
-                }
-                
-                const byteArray = new Uint8Array(byteNumbers);
-                byteArrays.push(byteArray);
-              }
-              
-              const blob = new Blob(byteArrays, { type: 'image/png' });
-
-              // Generate a unique filename with timestamp
-              const timestamp = Date.now();
-              const random = Math.floor(Math.random() * 10000);
-              const fileName = `edited_${timestamp}_${random}.png`;
-              const filePath = fileName;
-
-              const { error: uploadError } = await supabase.storage
-                .from('scene-photos')
-                .upload(filePath, blob);
-
-              if (uploadError) throw uploadError;
-
-              await supabase.storage
-                .from('scene-photos')
-                .remove([editingPhoto.file_path]);
-
-              // Update photo record with new file path and timestamp
-              const { error: dbError } = await supabase
-                .from('photos')
-                .update({
-                  file_path: filePath,
-                  updated_at: new Date().toISOString() // Add timestamp to force refresh
-                })
-                .eq('id', editingPhoto.id);
-
-              if (dbError) throw dbError;
-
-              // Refresh block data
-              const { data } = await supabase
-                .from('blocks')
-                .select(`
-                  *,
-                  photos (
-                    id,
-                    file_path,
-                    file_name,
-                    comment
-                  )
-                `)
-                .eq('id', block.id)
-                .single();
-
-              if (data) {
-                onUpdated(data);
-              }
-              
-              setEditingPhoto(null);
-            } catch (error) {
-              console.error('Error saving edited photo:', error);
-              alert('Errore durante il salvataggio della foto. Per favore riprova.');
-            }
+          imageUrl={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/scene-photos/${editingPhoto.file_path}?v=${cacheKey}`}
+          onSave={(editedImageUrl) => {
+            handleSaveEdit(editedImageUrl);
+            setCacheKey(Date.now());
           }}
           onClose={() => setEditingPhoto(null)}
         />

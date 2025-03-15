@@ -6,6 +6,7 @@ interface SceneInfo {
   interior_exterior?: string
   time_of_day?: string
   cast?: string[]
+  scene_name?: string; // Nuova proprietà per il nome completo della scena
 }
 
 export async function parseScriptPDF(file: File): Promise<{ scenes: SceneInfo[], allCastMembers: string[] }> {
@@ -193,6 +194,14 @@ export async function parseScriptPDF(file: File): Promise<{ scenes: SceneInfo[],
               currentSceneCast.clear();
             }
             
+            // Crea l'oggetto scena usando le parti estratte
+            currentScene = {
+            interior_exterior: headerMatch[1].toUpperCase().replace(/\./g, '').replace(/-/g, '/'),
+            location: processLocation(headerMatch[2]),
+            time_of_day: normalizeTimeOfDay(headerMatch[3]),
+            scene_name: line // Qui salvi l'intera riga come nome della scena
+          };
+
             console.log('Found scene header:', line)
             currentScene = {
               interior_exterior: headerMatch[1].toUpperCase()

@@ -12,12 +12,13 @@ interface ViewModeSelectorProps {
 
 export function ViewModeSelector({ currentMode, onChange }: ViewModeSelectorProps) {
   return (
-    <div className="flex items-center gap-2 bg-card rounded-lg p-1">
+    <div className="flex items-center gap-2 bg-card rounded-lg p-1 shadow-sm border">
       <Button
         variant={currentMode === 'horizontal' ? 'default' : 'ghost'}
         size="icon"
         onClick={() => onChange('horizontal')}
-        className="h-8 w-8"
+        className="h-8 w-8 transition-all duration-200"
+        aria-label="Horizontal view"
       >
         <AlignHorizontalJustifyCenter className="h-4 w-4" />
       </Button>
@@ -25,7 +26,8 @@ export function ViewModeSelector({ currentMode, onChange }: ViewModeSelectorProp
         variant={currentMode === 'vertical' ? 'default' : 'ghost'}
         size="icon"
         onClick={() => onChange('vertical')}
-        className="h-8 w-8"
+        className="h-8 w-8 transition-all duration-200"
+        aria-label="Vertical view"
       >
         <AlignVerticalJustifyCenter className="h-4 w-4" />
       </Button>
@@ -33,7 +35,8 @@ export function ViewModeSelector({ currentMode, onChange }: ViewModeSelectorProp
         variant={currentMode === 'grid' ? 'default' : 'ghost'}
         size="icon"
         onClick={() => onChange('grid')}
-        className="h-8 w-8"
+        className="h-8 w-8 transition-all duration-200"
+        aria-label="Grid view"
       >
         <LayoutGrid className="h-4 w-4" />
       </Button>

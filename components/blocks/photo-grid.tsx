@@ -19,6 +19,7 @@ export function PhotoGrid({ photos, blockId, onPhotosUpdated }: PhotoGridProps) 
   const [isUploading, setIsUploading] = useState(false)
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null)
   const [editingPhoto, setEditingPhoto] = useState<Photo | null>(null)
+  const [cacheKey, setCacheKey] = useState(Date.now())
   const supabase = createClientComponentClient()
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -49,6 +50,7 @@ export function PhotoGrid({ photos, blockId, onPhotosUpdated }: PhotoGridProps) 
 
       if (dbError) throw dbError
 
+      setCacheKey(Date.now())
       onPhotosUpdated()
     } catch (error) {
       console.error('Error uploading photo:', error)
@@ -90,8 +92,8 @@ export function PhotoGrid({ photos, blockId, onPhotosUpdated }: PhotoGridProps) 
       const blob = await response.blob()
 
       const fileExt = editingPhoto.file_name.split('.').pop()
-      const fileName = `${Math.random()}.${fileExt}`
-      const filePath = `photos/${fileName}`
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`
+      const filePath = fileName
 
       const { error: uploadError } = await supabase.storage
         .from('scene-photos')
@@ -112,6 +114,7 @@ export function PhotoGrid({ photos, blockId, onPhotosUpdated }: PhotoGridProps) 
 
       if (dbError) throw dbError
 
+      setCacheKey(Date.now())
       onPhotosUpdated()
       setEditingPhoto(null)
     } catch (error) {
@@ -151,7 +154,7 @@ export function PhotoGrid({ photos, blockId, onPhotosUpdated }: PhotoGridProps) 
               onClick={() => setSelectedPhoto(photo)}
             >
               <Image
-                src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/scene-photos/${photo.file_path}?v=${Date.now()}`}
+                src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/scene-photos/${photo.file_path}?v=${cacheKey}`}
                 alt={photo.file_name}
                 fill
                 className="object-cover"

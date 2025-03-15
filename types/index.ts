@@ -48,6 +48,7 @@ export interface Block {
   history: string | null
   scene_date: string | null
   scene_time: string | null
+  scene_name: string | null
   completed: boolean
   created_at: string
   updated_at: string

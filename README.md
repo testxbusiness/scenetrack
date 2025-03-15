@@ -1,36 +1,90 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SceneTrack
 
-## Getting Started
+![SceneTrack Logo](/public/scenetrack_logo.png)
 
-First, run the development server:
+SceneTrack è un'applicazione web progettata per i professionisti del cinema e della produzione video per organizzare, gestire e tenere traccia di tutti gli aspetti della produzione cinematografica.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Caratteristiche Principali
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- **Gestione Progetti**: Crea e gestisci progetti cinematografici con descrizioni dettagliate
+- **Organizzazione Sequenze**: Suddividi i tuoi progetti in sequenze logiche
+- **Tracciamento Scene**: Gestisci ogni scena con dettagli come:
+  - Numero di scena
+  - Localizzazione (interna/esterna)
+  - Orario del giorno
+  - Note e descrizioni
+  - Data e ora della scena
+- **Gestione Cast**: Associa membri del cast alle scene
+- **Galleria Fotografica**: Carica e organizza foto per ogni scena
+- **Dashboard Analitico**: Visualizza statistiche e grafici sulla progressione del progetto
+- **Interfaccia Intuitiva**: Design moderno e reattivo con supporto per tema chiaro/scuro
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Tecnologie Utilizzate
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Frontend**:
+  - Next.js 14
+  - React 18
+  - Tailwind CSS
+  - Radix UI Components
+  - Chart.js e D3.js per visualizzazioni dati
+  - Fabric.js per editing immagini
+  - PDF.js per parsing documenti
 
-## Learn More
+- **Backend**:
+  - Supabase per autenticazione e database
+  - API Routes di Next.js
 
-To learn more about Next.js, take a look at the following resources:
+## Requisiti di Sistema
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- Node.js 18.x o superiore
+- NPM o Yarn
+- Account Supabase (per database e autenticazione)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Installazione
 
-## Deploy on Vercel
+1. Clona il repository:
+   ```bash
+   git clone https://github.com/testxbusiness/scenetrack.git
+   cd scenetrack
+   ```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+2. Installa le dipendenze:
+   ```bash
+   npm install
+   # oppure
+   yarn install
+   ```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+3. Configura le variabili d'ambiente:
+   Crea un file `.env.local` nella root del progetto con le seguenti variabili:
+   ```
+   NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+   ```
+
+4. Configura il database Supabase:
+   Esegui gli script SQL nella cartella `/supabase` per configurare le tabelle e le policy di sicurezza.
+
+5. Avvia il server di sviluppo:
+   ```bash
+   npm run dev
+   # oppure
+   yarn dev
+   ```
+
+6. Apri [http://localhost:3000](http://localhost:3000) nel tuo browser.
+
+## Struttura del Database
+
+L'applicazione utilizza le seguenti tabelle principali:
+
+- **projects**: Progetti cinematografici
+- **sequences**: Sequenze all'interno di un progetto
+- **blocks**: Scene individuali all'interno di una sequenza
+- **photos**: Immagini associate alle scene
+- **cast_members**: Membri del cast del progetto
+- **block_cast**: Associazione tra scene e membri del cast
+
+## Licenza
+
+© 2025 SceneTrack. Tutti i diritti riservati.

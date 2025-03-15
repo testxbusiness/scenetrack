@@ -19,6 +19,8 @@ export function NewBlockDialog({ sequenceId, insertPosition, onClose, onCreated 
   const [location, setLocation] = useState('')
   const [interiorExterior, setInteriorExterior] = useState('')
   const [timeOfDay, setTimeOfDay] = useState('')
+  const [sceneDate, setSceneDate] = useState('')
+  const [sceneTime, setSceneTime] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [projectId, setProjectId] = useState<string | null>(null)
   const [castMembers, setCastMembers] = useState<CastMember[]>([])
@@ -119,6 +121,8 @@ export function NewBlockDialog({ sequenceId, insertPosition, onClose, onCreated 
             location: location || null,
             interior_exterior: interiorExterior || null,
             time_of_day: timeOfDay || null,
+            scene_date: sceneDate || null,
+            scene_time: sceneTime || null,
           },
         ])
         .select()
@@ -225,11 +229,88 @@ export function NewBlockDialog({ sequenceId, insertPosition, onClose, onCreated 
                 <option value="NOTTE">Notte</option>
                 <option value="ALBA">Alba</option>
                 <option value="TRAMONTO">Tramonto</option>
-                <option value="CREPUSCOLO">Crepuscolo</option>
-                <option value="MATTINA">Mattina</option>
-                <option value="POMERIGGIO">Pomeriggio</option>
-                <option value="SERA">Sera</option>
               </select>
+            </div>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-1">
+              Timeline della scena
+            </label>
+            <div className="grid grid-cols-1 gap-2 mb-2">
+              <div className="flex items-center">
+                <input
+                  type="radio"
+                  id="useDate"
+                  name="dateType"
+                  checked={!sceneDate.startsWith('GIORNO')}
+                  onChange={() => {
+                    if (sceneDate.startsWith('GIORNO')) {
+                      setSceneDate('');
+                    }
+                  }}
+                  className="mr-2"
+                />
+                <label htmlFor="useDate" className="text-sm">Usa data specifica</label>
+              </div>
+              <div className="flex items-center">
+                <input
+                  type="radio"
+                  id="useDay"
+                  name="dateType"
+                  checked={sceneDate.startsWith('GIORNO')}
+                  onChange={() => {
+                    if (!sceneDate.startsWith('GIORNO')) {
+                      setSceneDate('GIORNO ');
+                    }
+                  }}
+                  className="mr-2"
+                />
+                <label htmlFor="useDay" className="text-sm">Usa giorno generico (es. GIORNO 1)</label>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              {sceneDate.startsWith('GIORNO') ? (
+                <div>
+                  <label htmlFor="sceneDay" className="block text-sm font-medium mb-1">
+                    Giorno
+                  </label>
+                  <input
+                    type="text"
+                    id="sceneDay"
+                    value={sceneDate}
+                    onChange={(e) => setSceneDate(e.target.value)}
+                    placeholder="GIORNO 1"
+                    className="w-full p-2 rounded-md border bg-background"
+                  />
+                </div>
+              ) : (
+                <div>
+                  <label htmlFor="sceneDate" className="block text-sm font-medium mb-1">
+                    Data
+                  </label>
+                  <input
+                    type="date"
+                    id="sceneDate"
+                    value={sceneDate}
+                    onChange={(e) => setSceneDate(e.target.value)}
+                    className="w-full p-2 rounded-md border bg-background"
+                  />
+                </div>
+              )}
+              <div>
+                <label htmlFor="sceneTime" className="block text-sm font-medium mb-1">
+                  Ora
+                </label>
+                <input
+                  type="time"
+                  id="sceneTime"
+                  value={sceneTime}
+                  onChange={(e) => setSceneTime(e.target.value)}
+                  className="w-full p-2 rounded-md border bg-background"
+                />
+              </div>
             </div>
           </div>
           <div>

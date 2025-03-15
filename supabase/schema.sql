@@ -79,6 +79,17 @@ create table if not exists photos (
 -- Indice per velocizzare le query sulle foto di un blocco
 create index if not exists photos_block_id_idx on photos(block_id);
 
+-- Tabella dei commenti
+create table if not exists comments (
+  id uuid default gen_random_uuid() primary key,
+  block_id uuid not null references blocks(id) on delete cascade,
+  content text not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Indice per velocizzare le query sui commenti di un blocco
+create index if not exists comments_block_id_idx on comments(block_id);
+
 -- Funzione per verificare l'ordine dei blocchi
 create or replace function check_block_order()
 returns trigger as $$

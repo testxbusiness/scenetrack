@@ -37,7 +37,7 @@ export default async function ProjectPage({
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b">
+      <header className="border-b bg-card/50 shadow-sm">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link href="/dashboard">
@@ -47,32 +47,33 @@ export default async function ProjectPage({
                   alt="SceneTrack Logo"
                   fill
                   className="object-contain dark:invert"
+                  priority
                 />
               </div>
             </Link>
             <div className="flex items-center gap-2">
-              <Link href="/dashboard" className="text-sm text-muted-foreground hover:text-foreground">
+              <Link href="/dashboard" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
                 Dashboard
               </Link>
               <span className="text-muted-foreground">/</span>
-              <h1 className="text-xl font-semibold">{project.name}</h1>
+              <h1 className="text-xl font-semibold tracking-tight">{project.name}</h1>
             </div>
           </div>
           <div className="flex items-center gap-4">
             {user.user_metadata.avatar_url && (
-              <div className="relative w-8 h-8">
+              <div className="relative w-8 h-8 rounded-full overflow-hidden ring-2 ring-background">
                 <Image
                   src={user.user_metadata.avatar_url}
                   alt="Avatar"
                   fill
-                  className="rounded-full object-cover"
+                  className="object-cover"
                 />
               </div>
             )}
             <form action="/auth/signout" method="post">
               <button
                 type="submit"
-                className="text-sm text-muted-foreground hover:text-foreground"
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
               >
                 Esci
               </button>
@@ -81,28 +82,34 @@ export default async function ProjectPage({
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <p className="text-muted-foreground">{project.description}</p>
-          <p className="text-sm text-muted-foreground mt-2">
+      <main className="container mx-auto px-4 py-10">
+        <div className="mb-10 bg-card p-6 rounded-xl border shadow-sm">
+          <h1 className="text-2xl font-bold mb-3 tracking-tight">{project.name}</h1>
+          <p className="text-muted-foreground">{project.description || "Nessuna descrizione"}</p>
+          <div className="flex items-center mt-4 text-sm text-muted-foreground">
+            <span className="inline-block w-2 h-2 rounded-full bg-primary/60 mr-2"></span>
             Creato il {formatDate(project.created_at)}
-          </p>
+          </div>
         </div>
 
-        <div className="space-y-12">
+        <div className="space-y-16">
           <section>
             <div className="flex items-center justify-between mb-8">
-              <h2 className="text-2xl font-bold">Sequenze</h2>
+              <h2 className="text-2xl font-bold tracking-tight">Sequenze</h2>
               <NewSequenceDialog projectId={project.id} />
             </div>
-            <SequencesList initialSequences={sequences || []} />
+            <div className="bg-card rounded-xl p-6 shadow-sm border">
+              <SequencesList initialSequences={sequences || []} />
+            </div>
           </section>
 
           <section>
             <div className="flex items-center justify-between mb-8">
-              <h2 className="text-2xl font-bold">Dashboard</h2>
+              <h2 className="text-2xl font-bold tracking-tight">Panoramica</h2>
             </div>
-            <ProjectDashboard projectId={project.id} />
+            <div className="bg-card rounded-xl p-6 shadow-sm border">
+              <ProjectDashboard projectId={project.id} />
+            </div>
           </section>
         </div>
       </main>

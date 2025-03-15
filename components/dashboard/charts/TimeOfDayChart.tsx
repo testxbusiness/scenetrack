@@ -47,6 +47,7 @@ export default function TimeOfDayChart({ data }: TimeOfDayChartProps) {
             cx="50%"
             cy="50%"
             labelLine={false}
+            innerRadius={50}
             outerRadius={80}
             fill="#8884d8"
             dataKey="value"
