@@ -3,8 +3,19 @@ import { cookies } from 'next/headers'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function GET(request: NextRequest) {
+  // Per debug: log dell'URL richiesto e dei parametri
   const requestUrl = new URL(request.url)
+  console.log('Auth Callback - URL richiesto:', request.url)
+  console.log('Auth Callback - Origin:', requestUrl.origin)
+  
   const code = requestUrl.searchParams.get('code')
+  console.log('Auth Callback - Code presente:', !!code)
+  
+  // Ottieni l'hostname per impostare correttamente i cookie
+  const hostname = request.headers.get('host') || ''
+  const cookieDomain = hostname.includes('localhost') ? undefined : '.' + hostname.split(':')[0]
+  console.log('Auth Callback - Cookie domain:', cookieDomain)
+  
   const origin = requestUrl.origin
 
   if (code) {
@@ -15,24 +26,58 @@ export async function GET(request: NextRequest) {
       {
         cookies: {
           get(name: string) {
-            return cookieStore.get(name)?.value
+            const cookie = cookieStore.get(name)
+            console.log(`Auth Callback - Getting cookie ${name}:`, cookie?.value ? 'exists' : 'not found')
+            return cookie?.value
           },
           set(name: string, value: string, options: CookieOptions) {
-            cookieStore.set({ name, value, ...options })
+            // Assicurati che i cookie siano impostati per il dominio corretto
+            const cookieOptions = {
+              ...options,
+              domain: cookieDomain,
+            }
+            console.log(`Auth Callback - Setting cookie ${name}`, { domain: cookieOptions.domain })
+            cookieStore.set({ name, value, ...cookieOptions })
           },
           remove(name: string, options: CookieOptions) {
-            cookieStore.set({ name, value: '', ...options })
+            // Assicurati che i cookie siano rimossi per il dominio corretto
+            const cookieOptions = {
+              ...options,
+              domain: cookieDomain,
+            }
+            console.log(`Auth Callback - Removing cookie ${name}`, { domain: cookieOptions.domain })
+            cookieStore.set({ name, value: '', ...cookieOptions })
           },
         },
       }
     )
 
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
-    if (!error) {
-      return NextResponse.redirect(`${origin}/dashboard`)
+    try {
+      console.log('Auth Callback - Scambio del codice per la sessione...')
+      const { error } = await supabase.auth.exchangeCodeForSession(code)
+      
+      if (error) {
+        console.error('Auth Callback - Errore nello scambio del codice:', error.message)
+        return NextResponse.redirect(`${origin}/auth/auth-code-error`)
+      }
+      
+      console.log('Auth Callback - Sessione creata con successo, reindirizzamento a /dashboard')
+      
+      // Forza un reindirizzamento completo con cache-control per evitare problemi di caching
+      const redirectUrl = `${origin}/dashboard`
+      const response = NextResponse.redirect(redirectUrl)
+      
+      // Aggiungi header per evitare il caching
+      response.headers.set('Cache-Control', 'no-store, max-age=0')
+      
+      return response
+    } catch (error) {
+      console.error('Auth Callback - Errore imprevisto:', error)
+      return NextResponse.redirect(`${origin}/auth/auth-code-error`)
     }
   }
 
+  console.log('Auth Callback - Nessun codice trovato, reindirizzamento alla pagina di errore')
   // Return the user to an error page with some instructions
   return NextResponse.redirect(`${origin}/auth/auth-code-error`)
 }

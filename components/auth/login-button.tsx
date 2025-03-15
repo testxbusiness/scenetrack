@@ -6,12 +6,20 @@ import { Button } from '@/components/ui/button'
 export function LoginButton() {
   const handleLogin = async () => {
     const supabase = createClientComponentClient()
+    
+    // Per debug: log dell'origine
+    console.log('Login Button - Origin:', window.location.origin)
+    console.log('Login Button - Redirect URL:', `${window.location.origin}/auth/callback`)
 
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      // Assicurati che l'URL di reindirizzamento sia completo e corretto
+      const redirectUrl = `${window.location.origin}/auth/callback`
+      
+      console.log('Login Button - Inizializzazione login con Google...')
+      const { error, data } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: redirectUrl,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
@@ -19,11 +27,13 @@ export function LoginButton() {
         },
       })
 
+      console.log('Login Button - Risposta auth:', data ? 'success' : 'no data')
+      
       if (error) {
-        console.error('Error logging in:', error.message)
+        console.error('Login Button - Error logging in:', error.message)
       }
     } catch (error) {
-      console.error('Error:', error)
+      console.error('Login Button - Unexpected error:', error)
     }
   }
 
