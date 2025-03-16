@@ -13,9 +13,12 @@ export async function middleware(request: NextRequest) {
 
   // Ottieni l'hostname per impostare correttamente i cookie
   const hostname = request.headers.get('host') || ''
-  const cookieDomain = hostname.includes('localhost') ? undefined : '.' + hostname.split(':')[0]
+  // Non impostare esplicitamente il dominio dei cookie per evitare problemi di accesso
+  // Lasciando undefined, il browser imposterà i cookie per il dominio corrente
+  const cookieDomain = hostname.includes('localhost') ? undefined : undefined
   
-  // Per debug: log del dominio dei cookie
+  // Per debug: log dell'hostname e del dominio dei cookie
+  console.log('Middleware - Hostname:', hostname)
   console.log('Middleware - Cookie domain:', cookieDomain)
 
   const supabase = createServerClient(
@@ -70,8 +73,18 @@ export async function middleware(request: NextRequest) {
       data: { session },
     } = await supabase.auth.getSession()
     
-    // Per debug: log della sessione
+    // Per debug: log dettagliato della sessione
     console.log('Middleware - Session:', session ? 'authenticated' : 'not authenticated')
+    if (session) {
+      console.log('Middleware - User ID:', session.user.id)
+      console.log('Middleware - User Email:', session.user.email)
+      if (session.expires_at) {
+        console.log('Middleware - Session Expires At:', new Date(session.expires_at * 1000).toISOString())
+      }
+    }
+    
+    // Log di tutti i cookie disponibili per debug
+    console.log('Middleware - All Cookies:', Array.from(request.cookies.getAll()).map(c => c.name))
 
     // Se l'utente non è autenticato e sta cercando di accedere a una pagina protetta
     if (!session && (

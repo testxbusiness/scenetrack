@@ -16,10 +16,14 @@ export function LoginButton() {
       const redirectUrl = `${window.location.origin}/auth/callback`
       
       console.log('Login Button - Inizializzazione login con Google...')
+      console.log('Login Button - Hostname:', window.location.hostname)
+      console.log('Login Button - Protocol:', window.location.protocol)
+      
       const { error, data } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: redirectUrl,
+          // Forza il refresh del token per assicurarsi che la sessione sia sempre aggiornata
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
