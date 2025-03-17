@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation'
 import { createClientComponentClient } from '@/lib/supabase/client'
 import { LayoutDashboard, FolderOpen, ChevronLeft, ChevronRight, LogOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { LogoutButton } from '@/components/auth/logout-button'
 import { Project } from '@/types'
 
 interface AppNavbarProps {
@@ -112,17 +113,12 @@ export function AppNavbar({ projects, userAvatarUrl }: AppNavbarProps) {
             <span className="ml-3 text-sm font-medium truncate">Account</span>
           )}
         </div>
-        <form action="/auth/signout" method="post">
-          <Button
-            type="submit"
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 rounded-full hover:bg-destructive/10 hover:text-destructive"
-            aria-label="Sign out"
-          >
-            <LogOut size={16} />
-          </Button>
-        </form>
+        {/* Sostituito form con LogoutButton per evitare prefetching */}
+        <LogoutButton 
+          variant="ghost" 
+          iconOnly 
+          className="h-8 w-8 rounded-full hover:bg-destructive/10 hover:text-destructive" 
+        />
       </div>
     </div>
   )

@@ -6,6 +6,7 @@ import { formatDate } from '@/lib/utils'
 import { NewSequenceDialog } from '@/components/sequences/new-sequence-dialog'
 import { SequencesList } from '@/components/sequences/sequences-list'
 import ProjectDashboard from '@/components/projects/project-dashboard'
+import { LogoutButtonWrapper } from '@/components/auth/logout-button-wrapper'
 
 export default async function ProjectPage({
   params,
@@ -70,14 +71,12 @@ export default async function ProjectPage({
                 />
               </div>
             )}
-            <form action="/auth/signout" method="post">
-              <button
-                type="submit"
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Esci
-              </button>
-            </form>
+            {/* Sostituito form con LogoutButtonWrapper per evitare prefetching */}
+            <LogoutButtonWrapper 
+              variant="link" 
+              size="sm"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors p-0 h-auto"
+            />
           </div>
         </div>
       </header>
