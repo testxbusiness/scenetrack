@@ -16,6 +16,68 @@ interface EditBlockDialogProps {
 // Global variable to track if the edit dialog is open
 let isEditDialogOpen = false;
 
+// Funzione per normalizzare i valori di interno/esterno
+const normalizeInteriorExterior = (value: string | null): string => {
+  if (!value) return '';
+  
+  // Normalizza i valori comuni
+  const normalized = value.toUpperCase().trim();
+  
+  // Gestisci valori che terminano con slash (es. "EXT/")
+  if (normalized.startsWith('INT') && !normalized.includes('EST') && !normalized.includes('EXT')) return 'INT';
+  if ((normalized.startsWith('EST') || normalized.startsWith('EXT')) && !normalized.includes('INT')) return 'EST';
+  if ((normalized.includes('INT/EST') || normalized.includes('INT/EXT'))) return 'INT/EST';
+  if ((normalized.includes('EST/INT') || normalized.includes('EXT/INT'))) return 'EST/INT';
+  
+  // Rimuovi eventuali slash alla fine
+  const cleanValue = normalized.replace(/\/$/, '');
+  
+  if (cleanValue === 'INT') return 'INT';
+  if (cleanValue === 'EST' || cleanValue === 'EXT') return 'EST';
+  
+  console.log('Valore interno/esterno non riconosciuto:', value, 'normalizzato a:', normalized);
+  return '';
+};
+
+// Funzione per normalizzare i valori di tempo
+const normalizeTimeOfDay = (value: string | null): string => {
+  if (!value) return '';
+  
+  const normalized = value.toUpperCase().trim();
+  
+  // Gestisci valori composti (es. "GIORNO/NOTTE")
+  if (normalized.includes('/')) {
+    // Prendi il primo valore prima dello slash
+    const firstPart = normalized.split('/')[0].trim();
+    return normalizeTimeOfDay(firstPart); // Richiama ricorsivamente per normalizzare la prima parte
+  }
+  
+  // Mappa i valori comuni
+  const timeMap: Record<string, string> = {
+    'GIORNO': 'GIORNO',
+    'NOTTE': 'NOTTE',
+    'ALBA': 'ALBA',
+    'TRAMONTO': 'TRAMONTO',
+    'CREPUSCOLO': 'CREPUSCOLO',
+    'MATTINA': 'MATTINA',
+    'POMERIGGIO': 'POMERIGGIO',
+    'SERA': 'SERA',
+    'DAY': 'GIORNO',
+    'NIGHT': 'NOTTE',
+    'DAWN': 'ALBA',
+    'DUSK': 'TRAMONTO',
+    'MORNING': 'MATTINA',
+    'AFTERNOON': 'POMERIGGIO',
+    'EVENING': 'SERA'
+  };
+  
+  const result = timeMap[normalized] || '';
+  if (!result && normalized) {
+    console.log('Valore tempo non riconosciuto:', value, 'normalizzato a:', normalized);
+  }
+  return result;
+};
+
 export function EditBlockDialog({ block, onClose, onDeleted, onUpdated }: EditBlockDialogProps) {
   // Set the dialog as open when component mounts
   useEffect(() => {
@@ -24,13 +86,13 @@ export function EditBlockDialog({ block, onClose, onDeleted, onUpdated }: EditBl
       isEditDialogOpen = false;
     };
   }, []);
-  const [title, setTitle] = useState(block.title || '')
+  const [title, setTitle] = useState(block.title || block.scene_name || '')
   const [notes, setNotes] = useState(block.notes || '')
   const [orderNumber, setOrderNumber] = useState(block.order_number.toString())
   const [sceneNumber, setSceneNumber] = useState(block.scene_number || '')
   const [location, setLocation] = useState(block.location || '')
-  const [interiorExterior, setInteriorExterior] = useState(block.interior_exterior || '')
-  const [timeOfDay, setTimeOfDay] = useState(block.time_of_day || '')
+  const [interiorExterior, setInteriorExterior] = useState(normalizeInteriorExterior(block.interior_exterior))
+  const [timeOfDay, setTimeOfDay] = useState(normalizeTimeOfDay(block.time_of_day))
   const [history, setHistory] = useState(block.history || '')
   const [sceneDate, setSceneDate] = useState(block.scene_date || '')
   const [sceneTime, setSceneTime] = useState(block.scene_time || '')
@@ -331,7 +393,7 @@ export function EditBlockDialog({ block, onClose, onDeleted, onUpdated }: EditBl
           </div>
           <div>
             <label htmlFor="interiorExterior" className="block text-sm font-medium mb-1">
-              Interno/Esterno
+              Ambiente
             </label>
             <select
               id="interiorExterior"
@@ -359,6 +421,8 @@ export function EditBlockDialog({ block, onClose, onDeleted, onUpdated }: EditBl
               <option value="">Seleziona...</option>
               <option value="GIORNO">Giorno</option>
               <option value="NOTTE">Notte</option>
+              <option value="GIORNO/NOTTE">Giorno/Notte</option>
+              <option value="NOTTE/GIORNO">Notte/Giorno</option>
               <option value="ALBA">Alba</option>
               <option value="TRAMONTO">Tramonto</option>
               <option value="CREPUSCOLO">Crepuscolo</option>
