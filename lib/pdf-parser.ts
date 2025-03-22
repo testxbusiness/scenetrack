@@ -6,123 +6,83 @@ interface SceneInfo {
   interior_exterior?: string
   time_of_day?: string
   cast?: string[]
-  scene_name?: string; // Nuova proprietà per il nome completo della scena
+  scene_name?: string; // Salva l’intera riga come nome della scena
 }
 
 export async function parseScriptPDF(file: File): Promise<{ scenes: SceneInfo[], allCastMembers: string[] }> {
-  const scenes: SceneInfo[] = []
-  const allCastMembers = new Set<string>()
-  
+  const scenes: SceneInfo[] = [];
+  const allCastMembers = new Set<string>();
+
   try {
-    // Verify file type
+    // Verifica il tipo di file
     if (!file.type.includes('pdf')) {
-      throw new Error('Il file deve essere in formato PDF')
+      throw new Error('Il file deve essere in formato PDF');
     }
-
-    if (file.size > 20 * 1024 * 1024) { // 20MB limit
-      throw new Error('Il file è troppo grande. La dimensione massima è 20MB.')
+    if (file.size > 20 * 1024 * 1024) {
+      throw new Error('Il file è troppo grande. La dimensione massima è 20MB.');
     }
-
     console.log('Starting PDF parsing...', {
       fileName: file.name,
       fileType: file.type,
       fileSize: file.size
-    })
+    });
 
-    // Convert File to ArrayBuffer
+    // Conversione del file in ArrayBuffer
     let arrayBuffer: ArrayBuffer;
     try {
-      arrayBuffer = await file.arrayBuffer()
+      arrayBuffer = await file.arrayBuffer();
     } catch (error) {
-      console.error('Error reading file:', error)
-      throw new Error('Impossibile leggere il file. Verifica che il file non sia danneggiato.')
+      console.error('Error reading file:', error);
+      throw new Error('Impossibile leggere il file. Verifica che il file non sia danneggiato.');
     }
 
-    // Dynamically import PDF.js
+    // Import dinamico di PDF.js
     let pdfjs;
     try {
-      pdfjs = await import('pdfjs-dist')
+      pdfjs = await import('pdfjs-dist');
     } catch (error) {
-      console.error('Error importing PDF.js:', error)
-      throw new Error('Impossibile caricare la libreria PDF.js. Ricarica la pagina e riprova.')
+      console.error('Error importing PDF.js:', error);
+      throw new Error('Impossibile caricare la libreria PDF.js. Ricarica la pagina e riprova.');
     }
 
-    const { getDocument, GlobalWorkerOptions } = pdfjs
-    
-    // Initialize worker
+    const { getDocument, GlobalWorkerOptions } = pdfjs;
+
+    // Inizializza il worker
     try {
       if (typeof window !== 'undefined') {
-        GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js'
+        GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
       }
     } catch (error) {
-      console.error('Error setting worker source:', error)
-      throw new Error('Errore di inizializzazione del worker PDF. Ricarica la pagina e riprova.')
+      console.error('Error setting worker source:', error);
+      throw new Error('Errore di inizializzazione del worker PDF. Ricarica la pagina e riprova.');
     }
 
-    // Load PDF document
+    // Carica il PDF
     let pdf: PDFDocumentProxy;
     try {
-      const loadingTask = getDocument(new Uint8Array(arrayBuffer))
-      pdf = await loadingTask.promise
+      const loadingTask = getDocument(new Uint8Array(arrayBuffer));
+      pdf = await loadingTask.promise;
     } catch (error) {
-      console.error('Error loading PDF:', error)
-      throw new Error('Impossibile caricare il PDF. Verifica che il file sia un PDF valido e non sia protetto da password.')
+      console.error('Error loading PDF:', error);
+      throw new Error('Impossibile caricare il PDF. Verifica che il file sia un PDF valido e non sia protetto da password.');
     }
-
-    console.log('PDF loaded successfully', {
-      numPages: pdf.numPages
-    })
-
+    console.log('PDF loaded successfully', { numPages: pdf.numPages });
     if (pdf.numPages === 0) {
-      throw new Error('Il PDF non contiene pagine.')
-    }
-    
-    // Regular expressions for scene detection
-    // Define time indicators separately for better readability
-    const timeIndicators = [
-      'GIORNO', 'NOTTE', 'ALBA', 'TRAMONTO', 'CREPUSCOLO', 'MATTINA', 'POMERIGGIO', 'SERA',
-      'NIGHT', 'DAY', 'DAWN', 'DUSK', 'MORNING', 'AFTERNOON', 'EVENING',
-      'LATER', 'MOMENTS LATER', 'HOURS LATER', 'FLASHBACK'
-    ].join('|')
-    
-    // Regular expression for character/dialogue detection
-    // Looks for character names which are typically in all caps and may be followed by parenthetical
-    const characterRegex = /^([A-Z][A-Z\s]+)(?:\s*\([^)]*\))?$/
-
-    const sceneHeaderRegex = new RegExp(
-      '^' +
-      '(?:(?:SCENA\\s+\\d+\\s+)?[-\\s]*)?' + // Optional scene number prefix
-      '(INT\\.?|EST\\.?|EXT\\.?|INT\\/EST|EST\\/INT|INT-EST|EST-INT|INT\\.?\\/EST\\.?|EST\\.?\\/INT\\.)' + // Interior/Exterior
-      '(?:\\s+)' + // Required space
-      '(.+?)' + // Location (non-greedy)
-      `(?:\\s*[-–]\\s*(${timeIndicators})(?:\\s*\\([^)]*\\))?)?` + // Optional time of day with optional parenthetical
-      '$', 
-      'i'
-    )
-
-    // Helper function to process location parts
-    const processLocation = (location: string): string => {
-      // Remove any trailing separators or spaces
-      location = location.replace(/\s*[-–]\s*$/, '')
-      
-      // Split by separators but preserve them in the output
-      const parts = location.split(/\s*[-–\/]\s*/)
-      
-      // Filter out common time-related suffixes that might have been included
-      const timeRelatedWords = ['LATER', 'MOMENTS LATER', 'HOURS LATER', 'MINUTES LATER']
-      return parts
-        .filter(part => !timeRelatedWords.some(word => part.toUpperCase().includes(word)))
-        .join(' - ')
-        .trim()
+      throw new Error('Il PDF non contiene pagine.');
     }
 
-    // Helper function to normalize time of day
+    // Regex per i nomi dei personaggi (tipicamente in maiuscolo)
+    const characterRegex = /^([A-Z][A-Z\s]+)(?:\s*\([^)]*\))?$/;
+
+    // Pattern aggiornato per estrarre il numero di scena (alphanumerico)
+    // Accetta scene come "A8" o "B23" oppure con segmenti separati da punto, come "14.1A"
+    // Dopo il numero, è richiesto un separatore: oppure un punto seguito da spazi oppure solo spazi.
+    const sceneNumberRegex = /^(([A-Za-z]?\d+[A-Za-z]*)(?:\.([A-Za-z]?\d+[A-Za-z]*))*)(?:\.\s+|\s+)/;
+
+    // Funzione per normalizzare il tempo
     const normalizeTimeOfDay = (time?: string): string | undefined => {
-      if (!time) return undefined
-
-      // Remove any parenthetical notes
-      time = time.replace(/\s*\([^)]*\)/, '').trim()
-
+      if (!time) return undefined;
+      time = time.replace(/\s*\([^)]*\)/, '').trim();
       const timeMap: { [key: string]: string | undefined } = {
         'NIGHT': 'NOTTE',
         'DAY': 'GIORNO',
@@ -130,222 +90,241 @@ export async function parseScriptPDF(file: File): Promise<{ scenes: SceneInfo[],
         'DUSK': 'TRAMONTO',
         'MORNING': 'MATTINA',
         'AFTERNOON': 'POMERIGGIO',
-        'EVENING': 'SERA',
-        'LATER': undefined,
-        'MOMENTS LATER': undefined,
-        'HOURS LATER': undefined,
-        'FLASHBACK': undefined
+        'EVENING': 'SERA'
+      };
+      const upperTime = time.toUpperCase();
+      return timeMap[upperTime] || upperTime;
+    };
+
+    // Funzione per processare la location
+    const processLocation = (location: string): string => {
+      location = location.replace(/\s*[-–]\s*$/, '');
+      const parts = location.split(/\s*[-–\/]\s*/);
+      const timeRelatedWords = ['LATER', 'MOMENTS LATER', 'HOURS LATER', 'MINUTES LATER'];
+      return parts.filter(part => !timeRelatedWords.some(word => part.toUpperCase().includes(word)))
+                  .join(' - ')
+                  .trim();
+    };
+
+    // Funzione principale per il parsing dell’header della scena (caso standard)
+    const parseSceneHeader = (line: string): SceneInfo | null => {
+      let scene_number: string | undefined;
+      const numberMatch = line.match(sceneNumberRegex);
+      if (numberMatch) {
+        scene_number = numberMatch[1]; // es. "A8", "B23", "14.1A", "14BIS", ecc.
+        line = line.replace(sceneNumberRegex, '');
+      }
+      const timeIndicators = [
+        'GIORNO', 'NOTTE', 'ALBA', 'TRAMONTO', 'CREPUSCOLO',
+        'MATTINA', 'POMERIGGIO', 'SERA', 'DAY', 'NIGHT'
+      ].join('|');
+
+      const sceneHeaderRegex = new RegExp(
+        '^' +
+        '((?:INT|EXT)(?:[\\.\\/-](?:INT|EXT))?\\.?)(?=\\s+)' + // Marker INT/EXT
+        '\\s+' +
+        '(.+?)' + // Location
+        '(?:\\s*[-–]\\s*' +
+          '((?:' + timeIndicators + ')(?:\\/(?:' + timeIndicators + '))?)' + // Tempo opzionale
+        ')?' +
+        '(?:\\s*\\([^)]*\\))*' + // eventuali note
+        '$', 'i'
+      );
+
+      const headerMatch = line.match(sceneHeaderRegex);
+      if (!headerMatch) return null;
+      let interior_exterior = headerMatch[1].toUpperCase().replace(/[\.\/-]/g, '/');
+      let location = processLocation(headerMatch[2]);
+      let time_of_day = headerMatch[3] ? normalizeTimeOfDay(headerMatch[3]) : undefined;
+
+      return {
+        scene_number,
+        interior_exterior,
+        location,
+        time_of_day,
+        scene_name: line
+      };
+    };
+
+    // Nuovo fallback per righe che iniziano con numerazione ma in cui il marker INT/EXT compare in una posizione intermedia
+    const parseSceneHeaderWithMarkerInMiddle = (line: string): SceneInfo | null => {
+      // Verifica la presenza della numerazione
+      const numberMatch = line.match(sceneNumberRegex);
+      if (!numberMatch) return null;
+      const scene_number = numberMatch[1];
+      const rest = line.replace(sceneNumberRegex, '').trim();
+      // Cerca il marker INT. o EXT. all'interno della riga
+      const markerMatch = rest.match(/(INT\.?|EXT\.?)/i);
+      if (!markerMatch) return null;
+      const markerIndex = markerMatch.index!;
+      const prefix = rest.substring(0, markerIndex).trim(); // parte precedente al marker
+      const headerPortion = rest.substring(markerIndex).trim(); // dal marker in poi
+
+      // Riformatta: metti il marker all'inizio, inserisci il prefix come parte della location
+      const newHeader = `${markerMatch[0]} ${prefix} - ${headerPortion.substring(markerMatch[0].length).trim()}`;
+      console.log('Riformattazione header (marker in posizione intermedia):', newHeader);
+      const parsed = parseSceneHeader(newHeader);
+      if (parsed) {
+        parsed.scene_number = scene_number;
+        return parsed;
+      }
+      return null;
+    };
+
+    // Fallback per sceneggiature senza numerazione che iniziano direttamente con INT/EXT
+    const parseSceneHeaderFallback = (line: string): SceneInfo | null => {
+      const fallbackRegex = /^(INT\.?|EXT\.?|INT\/?EST|EST\/?INT)[\s\.\-]+(.+?)$/i;
+      const match = line.match(fallbackRegex);
+      if (match) {
+        return {
+          interior_exterior: match[1].toUpperCase().replace(/\./g, ''),
+          location: processLocation(match[2]),
+          time_of_day: undefined,
+          scene_name: line
+        };
+      }
+      return null;
+    };
+
+    let currentScene: SceneInfo | null = null;
+    let currentSceneCast = new Set<string>();
+
+    // Itera su ogni pagina del PDF
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+      console.log(`Processing page ${pageNum}/${pdf.numPages}`);
+      let page, textContent;
+      try {
+        page = await pdf.getPage(pageNum);
+        textContent = await page.getTextContent();
+      } catch (error) {
+        console.error(`Error extracting text from page ${pageNum}:`, error);
+        continue;
       }
 
-      const upperTime = time.toUpperCase()
-      return timeMap[upperTime] || upperTime
+      // Raggruppa gli elementi in base alla posizione verticale
+      const lines: { [y: number]: string[] } = {};
+      textContent.items.forEach((item: any) => {
+        if (!item.str) return;
+        const y = Math.round(item.transform[5]);
+        if (!lines[y]) lines[y] = [];
+        lines[y].push(item.str);
+      });
+
+      const pageText = Object.entries(lines)
+        .sort(([y1], [y2]) => Number(y2) - Number(y1))
+        .map(([_, lineItems]) => lineItems.join(' ').trim())
+        .filter(line => line.length > 0);
+
+      console.log(`Page ${pageNum} text extracted, ${pageText.length} lines`);
+      console.log('Sample lines:', pageText.slice(0, 3));
+
+      for (let i = 0; i < pageText.length; i++) {
+        const line = pageText[i].trim();
+        let parsedScene = parseSceneHeader(line);
+        // Se la scena non è stata trovata e la riga contiene numerazione, prova il fallback con marker in posizione intermedia
+        if (!parsedScene && sceneNumberRegex.test(line)) {
+          parsedScene = parseSceneHeaderWithMarkerInMiddle(line);
+        }
+        // Se ancora non viene trovata e la riga inizia con INT/EXT senza numerazione, usa il fallback base
+        if (!parsedScene && /^(INT\.?|EXT\.?|INT\/?EST|EST\/?INT)/i.test(line)) {
+          parsedScene = parseSceneHeaderFallback(line);
+        }
+        if (parsedScene) {
+          if (currentScene && currentSceneCast.size > 0) {
+            currentScene.cast = Array.from(currentSceneCast);
+            currentSceneCast.forEach(member => allCastMembers.add(member));
+            currentSceneCast.clear();
+          }
+          // Se il numero di scena non è stato assegnato, assegna un numero sequenziale
+          if (!parsedScene.scene_number) {
+            parsedScene.scene_number = (scenes.length + 1).toString();
+          }
+          currentScene = parsedScene;
+          scenes.push(currentScene);
+          console.log('Aggiunta scena:', currentScene);
+        } else if (currentScene) {
+          // Cerca nomi di personaggio
+          const characterMatch = line.match(characterRegex);
+          if (characterMatch) {
+            const character = characterMatch[1].trim();
+            const excludedTerms = ['INT', 'EST', 'EXT', 'FINE', 'SCENA', 'SCENE', 'CUT TO', 'FADE IN', 'FADE OUT'];
+            if (!excludedTerms.some(term => character.includes(term))) {
+              currentSceneCast.add(character);
+              console.log('Trovato personaggio nella scena:', character);
+            }
+          }
+        }
+      }
+      if (currentScene && currentSceneCast.size > 0) {
+        currentScene.cast = Array.from(currentSceneCast);
+        currentSceneCast.forEach(member => allCastMembers.add(member));
+      }
     }
-    const sceneNumberRegex = /^SCENA\s+(\d+)/i
-    
-      // Process each page
-      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-        console.log(`Processing page ${pageNum}/${pdf.numPages}`)
-        let page;
-        let textContent;
-        
-        try {
-          page = await pdf.getPage(pageNum)
-          textContent = await page.getTextContent()
-        } catch (error) {
-          console.error(`Error extracting text from page ${pageNum}:`, error)
-          continue // Skip this page and try the next one
-        }
-        
-        // Group text items by their vertical position to form lines
-        const lines: { [y: number]: string[] } = {}
-        textContent.items.forEach((item: any) => {
-          if (!item.str) return
-          const y = Math.round(item.transform[5]) // Vertical position
-          if (!lines[y]) {
-            lines[y] = []
-          }
-          lines[y].push(item.str)
-        })
 
-        // Convert grouped items to lines of text
-        const pageText = Object.entries(lines)
-          .sort(([y1], [y2]) => Number(y2) - Number(y1)) // Sort by vertical position, top to bottom
-          .map(([_, lineItems]) => lineItems.join(' ').trim())
-          .filter(line => line.length > 0)
-        
-        console.log(`Page ${pageNum} text extracted, ${pageText.length} lines`)
-        console.log('Sample lines:', pageText.slice(0, 3))
-        
-        let currentScene: SceneInfo | null = null;
-        let currentSceneCast = new Set<string>();
-        
-        // Process each line
-        for (let i = 0; i < pageText.length; i++) {
-          const line = pageText[i].trim();
-          
-          // Check for scene headers
-          const headerMatch = line.match(sceneHeaderRegex)
-          if (headerMatch) {
-            // If we were processing a scene, add its cast to the scene
-            if (currentScene && currentSceneCast.size > 0) {
-              currentScene.cast = Array.from(currentSceneCast);
-              // Add cast members to the global set
-              currentSceneCast.forEach(member => allCastMembers.add(member));
-              currentSceneCast.clear();
-            }
-            
-            // Crea l'oggetto scena usando le parti estratte
-            currentScene = {
-            interior_exterior: headerMatch[1].toUpperCase().replace(/\./g, '').replace(/-/g, '/'),
-            location: processLocation(headerMatch[2]),
-            time_of_day: normalizeTimeOfDay(headerMatch[3]),
-            scene_name: line // Qui salvi l'intera riga come nome della scena
-          };
-
-            console.log('Found scene header:', line)
-            currentScene = {
-              interior_exterior: headerMatch[1].toUpperCase()
-                .replace(/\./g, '') // Remove dots
-                .replace(/-/g, '/'), // Standardize separator to /
-              location: processLocation(headerMatch[2]),
-              time_of_day: normalizeTimeOfDay(headerMatch[3])
-            }
-
-            console.log('Processed scene:', {
-              original: line,
-              processed: currentScene
-            })
-            
-            // Look for scene number in current or previous lines
-            const numberMatch = line.match(sceneNumberRegex)
-            if (numberMatch) {
-              currentScene.scene_number = numberMatch[1]
-            } else {
-              // Look in previous lines
-              for (let j = i - 1; j >= 0 && j >= i - 3; j--) {
-                const prevNumberMatch = pageText[j].match(sceneNumberRegex)
-                if (prevNumberMatch) {
-                  currentScene.scene_number = prevNumberMatch[1]
-                  break
-                }
-              }
-            }
-            
-            // If no scene number found, use array length + 1
-            if (!currentScene.scene_number) {
-              currentScene.scene_number = (scenes.length + 1).toString()
-            }
-            
-            scenes.push(currentScene)
-            console.log('Added scene:', currentScene)
-          } 
-          // Check for character names (typically in all caps)
-          else if (currentScene) {
-            const characterMatch = line.match(characterRegex);
-            if (characterMatch) {
-              const character = characterMatch[1].trim();
-              // Exclude common non-character all-caps text
-              const excludedTerms = ['INT', 'EST', 'EXT', 'FINE', 'SCENA', 'SCENE', 'CUT TO', 'FADE IN', 'FADE OUT'];
-              if (!excludedTerms.some(term => character.includes(term))) {
-                currentSceneCast.add(character);
-                console.log('Found character in scene:', character);
-              }
-            }
-          }
-        }
-        
-        // Handle the last scene's cast
-        if (currentScene && currentSceneCast.size > 0) {
-          currentScene.cast = Array.from(currentSceneCast);
-          // Add cast members to the global set
-          currentSceneCast.forEach(member => allCastMembers.add(member));
-        }
-      }
-    
+    // Fallback leniente se nessuna scena è stata trovata
     if (scenes.length === 0) {
-      // Try a more lenient approach if no scenes were found
-      console.log('No scenes found with standard regex, trying more lenient approach...')
-      
-      // Simplified regex that just looks for INT/EST patterns
-      const simpleSceneHeaderRegex = /^(INT\.?|EST\.?|EXT\.?|INT\/?EST|EST\/?INT)[\s\.\-]+(.+?)$/i
-      
-      // Try again with the simpler regex
+      console.log('Nessuna scena trovata con le regex principali, uso approccio leniente...');
+      const simpleSceneHeaderRegex = /^(INT\.?|EXT\.?|INT\/?EST|EST\/?INT)[\s\.\-]+(.+?)$/i;
       for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
         try {
-          const page = await pdf.getPage(pageNum)
-          const textContent = await page.getTextContent()
-          
-          // Group text items by their vertical position to form lines
-          const lines: { [y: number]: string[] } = {}
+          const page = await pdf.getPage(pageNum);
+          const textContent = await page.getTextContent();
+          const lines: { [y: number]: string[] } = {};
           textContent.items.forEach((item: any) => {
-            if (!item.str) return
-            const y = Math.round(item.transform[5]) // Vertical position
-            if (!lines[y]) {
-              lines[y] = []
-            }
-            lines[y].push(item.str)
-          })
-
-          // Convert grouped items to lines of text
+            if (!item.str) return;
+            const y = Math.round(item.transform[5]);
+            if (!lines[y]) lines[y] = [];
+            lines[y].push(item.str);
+          });
           const pageText = Object.entries(lines)
-            .sort(([y1], [y2]) => Number(y2) - Number(y1)) // Sort by vertical position, top to bottom
+            .sort(([y1], [y2]) => Number(y2) - Number(y1))
             .map(([_, lineItems]) => lineItems.join(' ').trim())
-            .filter(line => line.length > 0)
-          
-          // Process each line with the simpler regex
+            .filter(line => line.length > 0);
           for (let i = 0; i < pageText.length; i++) {
-            const line = pageText[i].trim()
-            const simpleMatch = line.match(simpleSceneHeaderRegex)
-            
+            const line = pageText[i].trim();
+            const simpleMatch = line.match(simpleSceneHeaderRegex);
             if (simpleMatch) {
-              console.log('Found scene with lenient regex:', line)
+              console.log('Scena trovata con approccio leniente:', line);
               const scene: SceneInfo = {
                 interior_exterior: simpleMatch[1].toUpperCase().replace(/\./g, ''),
-                location: simpleMatch[2].trim(),
-                scene_number: (scenes.length + 1).toString()
-              }
-              scenes.push(scene)
+                location: processLocation(simpleMatch[2]),
+                scene_number: (scenes.length + 1).toString(),
+                scene_name: line
+              };
+              scenes.push(scene);
             }
           }
         } catch (error) {
-          console.error(`Error in lenient parsing for page ${pageNum}:`, error)
-          continue
+          console.error(`Errore nel parsing leniente per la pagina ${pageNum}:`, error);
+          continue;
         }
       }
     }
-    
+
     if (scenes.length === 0) {
-      throw new Error('Nessuna scena trovata nel PDF. Assicurati che il formato della sceneggiatura sia corretto. ' +
-        'Il PDF dovrebbe contenere scene nel formato "INT. LOCATION - GIORNO" o simili.')
+      throw new Error('Nessuna scena trovata nel PDF. Assicurati che il formato della sceneggiatura sia corretto.');
     }
-    
-    console.log(`Successfully parsed ${scenes.length} scenes from PDF with ${allCastMembers.size} cast members`)
-    return { 
-      scenes, 
-      allCastMembers: Array.from(allCastMembers) 
-    }
+
+    console.log(`Parsing completato: ${scenes.length} scene trovate con ${allCastMembers.size} membri del cast totali`);
+    return { scenes, allCastMembers: Array.from(allCastMembers) };
   } catch (error) {
-    console.error('PDF parsing error:', error)
-    
+    console.error('PDF parsing error:', error);
     if (error instanceof Error) {
-      // Don't wrap errors that we've already formatted
-      if (error.message.includes('Nessuna scena trovata') || 
+      if (error.message.includes('Nessuna scena trovata') ||
           error.message.includes('Impossibile') ||
           error.message.includes('Errore di inizializzazione')) {
-        throw error
+        throw error;
       }
-      
-      // Format other errors
-      console.error('PDF parsing details:', {
+      console.error('Dettagli dell’errore:', {
         error,
         fileName: file.name,
         fileType: file.type,
         fileSize: file.size,
         message: error.message
-      })
-      throw new Error(`Errore durante l'analisi del PDF: ${error.message}. Assicurati che il file sia un PDF valido e riprova.`)
+      });
+      throw new Error(`Errore durante l'analisi del PDF: ${error.message}. Assicurati che il file sia un PDF valido e riprova.`);
     } else {
-      throw new Error('Errore sconosciuto durante l\'analisi del PDF. Riprova con un altro file.')
+      throw new Error('Errore sconosciuto durante l\'analisi del PDF. Riprova con un altro file.');
     }
   }
 }
