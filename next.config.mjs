@@ -41,11 +41,19 @@ const nextConfig = {
           vendor: {
             test: /[\\/]node_modules[\\/]/,
             name(module) {
-              // Ottieni il nome del pacchetto dal percorso del modulo
-              const packageName = module.context.match(
-                /[\\/]node_modules[\\/](.*?)([\\/]|$)/
-              )[1];
-              // Crea un nome valido per il chunk
+              // Verifica se module.context esiste
+              if (!module.context) {
+                return 'npm.vendor'; // Fallback generico
+              }
+              
+              // Esegui il match e verifica se ha avuto successo
+              const match = module.context.match(/[\\/]node_modules[\\/](.*?)([\\/]|$)/);
+              if (!match || !match[1]) {
+                return 'npm.vendor'; // Fallback se il match fallisce
+              }
+              
+              // Estrai il nome del pacchetto in modo sicuro
+              const packageName = match[1];
               return `npm.${packageName.replace('@', '')}`;
             },
             priority: 5,
