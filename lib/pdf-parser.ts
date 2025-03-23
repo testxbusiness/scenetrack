@@ -50,7 +50,10 @@ export async function parseScriptPDF(file: File): Promise<{ scenes: SceneInfo[],
     // Inizializza il worker
     try {
       if (typeof window !== 'undefined') {
-        GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
+        // Usa un URL assoluto basato sull'origine corrente per garantire compatibilità mobile
+        const workerUrl = new URL('/pdf.worker.min.js', window.location.origin).href;
+        console.log('Setting PDF.js worker URL:', workerUrl);
+        GlobalWorkerOptions.workerSrc = workerUrl;
       }
     } catch (error) {
       console.error('Error setting worker source:', error);
@@ -61,9 +64,34 @@ export async function parseScriptPDF(file: File): Promise<{ scenes: SceneInfo[],
     let pdf: PDFDocumentProxy;
     try {
       const loadingTask = getDocument(new Uint8Array(arrayBuffer));
-      pdf = await loadingTask.promise;
-    } catch (error) {
+      
+      // Imposta un timeout per il caricamento
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => {
+          reject(new Error('Timeout durante il caricamento del PDF. Questo potrebbe essere un problema di connessione o di memoria del dispositivo.'));
+        }, 30000); // 30 secondi di timeout
+      });
+      
+      // Usa Promise.race per gestire il timeout
+      pdf = await Promise.race([
+        loadingTask.promise,
+        timeoutPromise
+      ]);
+    } catch (error: unknown) {
       console.error('Error loading PDF:', error);
+      
+      // Messaggi di errore più specifici per dispositivi mobili
+      if (error instanceof Error) {
+        if (error.message.includes('Timeout')) {
+          throw error; // Usa il messaggio di timeout già definito
+        } else if (error.message.includes('worker')) {
+          throw new Error('Impossibile caricare il worker PDF.js. Prova a utilizzare un browser desktop o verifica la tua connessione internet.');
+        } else if (error.name === 'RangeError' || error.message.includes('memory')) {
+          throw new Error('Memoria insufficiente per elaborare il PDF. Prova con un file più piccolo o utilizza un dispositivo con più memoria.');
+        }
+      }
+      
+      // Fallback per errori generici
       throw new Error('Impossibile caricare il PDF. Verifica che il file sia un PDF valido e non sia protetto da password.');
     }
     console.log('PDF loaded successfully', { numPages: pdf.numPages });

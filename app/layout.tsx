@@ -44,6 +44,12 @@ export default async function RootLayout({
 
   return (
     <html lang="en">
+      <head>
+        {/* Precarica il worker di PDF.js per migliorare la compatibilità mobile */}
+        <link rel="preload" href="/pdf.worker.min.js" as="script" />
+        {/* Assicura una corretta visualizzazione su dispositivi mobili */}
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+      </head>
       <body className={cn("min-h-screen bg-background font-sans antialiased", fontSans.variable)}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           {session ? (
