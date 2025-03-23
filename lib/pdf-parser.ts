@@ -1,4 +1,5 @@
 import { type PDFDocumentProxy } from 'pdfjs-dist'
+import pdfjs from '@/lib/pdf-module';
 
 interface SceneInfo {
   scene_number?: string
@@ -6,7 +7,7 @@ interface SceneInfo {
   interior_exterior?: string
   time_of_day?: string
   cast?: string[]
-  scene_name?: string; // Salva l’intera riga come nome della scena
+  scene_name?: string; // Salva l'intera riga come nome della scena
 }
 
 export async function parseScriptPDF(file: File): Promise<{ scenes: SceneInfo[], allCastMembers: string[] }> {
@@ -36,29 +37,12 @@ export async function parseScriptPDF(file: File): Promise<{ scenes: SceneInfo[],
       throw new Error('Impossibile leggere il file. Verifica che il file non sia danneggiato.');
     }
 
-    // Import dinamico di PDF.js
-    let pdfjs;
-    try {
-      pdfjs = await import('pdfjs-dist');
-    } catch (error) {
-      console.error('Error importing PDF.js:', error);
-      throw new Error('Impossibile caricare la libreria PDF.js. Ricarica la pagina e riprova.');
-    }
-
-    const { getDocument, GlobalWorkerOptions } = pdfjs;
-
-    // Inizializza il worker
-    try {
-      if (typeof window !== 'undefined') {
-        // Usa un URL assoluto basato sull'origine corrente per garantire compatibilità mobile
-        const workerUrl = new URL('/pdf.worker.min.js', window.location.origin).href;
-        console.log('Setting PDF.js worker URL:', workerUrl);
-        GlobalWorkerOptions.workerSrc = workerUrl;
-      }
-    } catch (error) {
-      console.error('Error setting worker source:', error);
-      throw new Error('Errore di inizializzazione del worker PDF. Ricarica la pagina e riprova.');
-    }
+    // Usa l'import statico di PDF.js dal modulo dedicato
+    const { getDocument } = pdfjs;
+    
+    // Non è necessario impostare GlobalWorkerOptions.workerSrc
+    // perché il worker è già incluso nel bundle tramite 'pdfjs-dist/build/pdf.worker.entry'
+    console.log('Using bundled PDF.js worker');
 
     // Carica il PDF
     let pdf: PDFDocumentProxy;
