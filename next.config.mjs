@@ -18,6 +18,17 @@ const nextConfig = {
   webpack: (config, { isServer }) => {
     // Gestisci PDF.js in modo speciale
     if (!isServer) {
+      // Assicurati che optimization e splitChunks esistano
+      if (!config.optimization) {
+        config.optimization = {};
+      }
+      if (!config.optimization.splitChunks) {
+        config.optimization.splitChunks = {};
+      }
+      if (!config.optimization.splitChunks.cacheGroups) {
+        config.optimization.splitChunks.cacheGroups = {};
+      }
+      
       // Crea un gruppo di cache specifico per PDF.js
       config.optimization.splitChunks.cacheGroups.pdfjs = {
         test: /[\\/]node_modules[\\/](pdfjs-dist)[\\/]/,
