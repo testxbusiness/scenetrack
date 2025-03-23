@@ -14,27 +14,43 @@ const nextConfig = {
       },
     ],
   },
-  // Configurazione webpack per gestire PDF.js
+  // Configurazione webpack ottimizzata per gestire PDF.js e migliorare il chunking
   webpack: (config, { isServer }) => {
-    // Gestisci PDF.js in modo speciale
+    // Gestisci PDF.js e altri moduli in modo speciale
     if (!isServer) {
       // Assicurati che optimization e splitChunks esistano
       if (!config.optimization) {
         config.optimization = {};
       }
-      if (!config.optimization.splitChunks) {
-        config.optimization.splitChunks = {};
-      }
-      if (!config.optimization.splitChunks.cacheGroups) {
-        config.optimization.splitChunks.cacheGroups = {};
-      }
       
-      // Crea un gruppo di cache specifico per PDF.js
-      config.optimization.splitChunks.cacheGroups.pdfjs = {
-        test: /[\\/]node_modules[\\/](pdfjs-dist)[\\/]/,
-        name: 'pdfjs',
-        priority: 10,
+      // Configura splitChunks per una migliore gestione dei chunk
+      config.optimization.splitChunks = {
         chunks: 'all',
+        maxInitialRequests: 25,
+        minSize: 20000,
+        cacheGroups: {
+          // Gruppo specifico per PDF.js
+          pdfjs: {
+            test: /[\\/]node_modules[\\/](pdfjs-dist)[\\/]/,
+            name: 'pdfjs',
+            priority: 10,
+            chunks: 'all',
+            enforce: true,
+          },
+          // Gruppo per le librerie comuni
+          vendor: {
+            test: /[\\/]node_modules[\\/]/,
+            name(module) {
+              // Ottieni il nome del pacchetto dal percorso del modulo
+              const packageName = module.context.match(
+                /[\\/]node_modules[\\/](.*?)([\\/]|$)/
+              )[1];
+              // Crea un nome valido per il chunk
+              return `npm.${packageName.replace('@', '')}`;
+            },
+            priority: 5,
+          },
+        },
       };
     }
     

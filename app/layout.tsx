@@ -8,6 +8,7 @@ import { createServerComponentClient } from '@/lib/supabase/server'
 import { cn } from "@/lib/utils"
 // Update Toaster import to use Sonner which is compatible with Next.js 14
 import { Toaster } from "sonner"
+import ChunkErrorHandler from './chunk-error-handler'
 
 // Define fontSans variable
 const fontSans = GeistSans
@@ -52,6 +53,7 @@ export default async function RootLayout({
       </head>
       <body className={cn("min-h-screen bg-background font-sans antialiased", fontSans.variable)}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <ChunkErrorHandler />
           {session ? (
             <AppLayout projects={projects} userAvatarUrl={userAvatarUrl}>
               {children}
